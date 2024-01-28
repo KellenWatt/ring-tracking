@@ -8,7 +8,7 @@ class Point:
     x: int
     y: int
 
-    def offset(self, origin) -> "Point":
+    def offset(self, origin: "Point") -> "Point":
         return Point(origin.x - self.x, origin.y - self.y)
 
 class BoundingBox:
@@ -17,7 +17,7 @@ class BoundingBox:
     width: int
     height: int
 
-    def __init__(self, x, y, w, h):
+    def __init__(self, x: int, y: int, w: int, h: int):
         self.x = x
         self.y = y
         self.width = w
@@ -63,7 +63,7 @@ class Match:
     full: bool
     box: BoundingBox
 
-    def __init__(self, x: int, y: int, w: int, h: int, contour, full):
+    def __init__(self, x: int, y: int, w: int, h: int, contour, full: bool):
         self.full = full
         self.box = BoundingBox(x, y, w, h)
         self.contour = contour
@@ -99,7 +99,7 @@ class CameraContext:
     # Object width in pixels at 1 meter
     object_width: Optional[int]
 
-    def __init__(self, width, height, fov = None, object_width = None):
+    def __init__(self, width: int, height: int, fov: Optional[float] = None, object_width: Optional[int] = None):
         self.image_dimensions = (width, height)
         self.fov = fov
         self.object_width = object_width
@@ -115,10 +115,11 @@ class CameraContext:
     def height(self) -> int:
         return self.image_dimensions[1]
 
+
 class ContextualMatch(Match):
     context: CameraContext
     
-    def __init__(self, x, y, w, h, contour, full, context):
+    def __init__(self, x: int, y: int, w: int, h: int, contour, full: bool, context: Optional[CameraContext]):
         super().__init__(x, y, w, h, contour, full)
         self.context = context
 
@@ -135,7 +136,7 @@ class ContextualMatch(Match):
         x_norm = x_norm * 2 - 1
         y_norm = y_norm * 2 - 1
         return (x_norm, -y_norm)
-    
+
     def yaw(self) -> Optional[float]:
         if self.context.fov is None or self.is_partial():
             return None
@@ -150,7 +151,28 @@ class ContextualMatch(Match):
         if self.context.object_width is None or self.is_partial():
             return None
 
-        # This may not be a linear thing. Seems to work beyond a meter, but up close might get dubious
+        # This may not be a completely linear thing. Seems to work beyond a meter, but up close might get dubious
         ratio = self.context.object_width / self.box.major_axis()
         return ratio
+
+    # Distances are calculated on the assumption that the match is the whole ring,
+    # it's the "proper" size, and the camera input is functionally uniform.
+    def x(self) -> Optional[float]:
+        if self.is_partial():
+            return None
+
+        center = self.relative_box().center()
+        # 14in = 0.3556m
+        return (center.x / self.box.major_axis()) * 0.3556
+
+    def y(self) -> Optional[float]:
+        return self.distance()
+
+    def z(self) -> Optional[float]:
+        if self.is_partial():
+            return None
+
+        center = self.relative_box().center()
+        # 14in = 0.3556m
+        return (center.y / self.box.major_axis()) * 0.3556
     
